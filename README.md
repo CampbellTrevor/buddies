@@ -18,7 +18,7 @@ and location require both players to:
 
 1. Have each other on their RuneLite/OSRS friends lists.
 2. Run Buddies.
-3. Configure the same presence server and shared room key.
+3. Configure the same shared room key.
 
 The shared key is hashed before it is sent as a room ID. Use a long random key;
 it is still a bearer secret, not account authentication.
@@ -37,6 +37,11 @@ Launch a development RuneLite client:
 
 ## Presence Server
 
+The plugin defaults to the hosted presence relay at
+[`https://buddies-presence.onrender.com`](https://buddies-presence.onrender.com/health).
+It runs on Render's free tier, so the first connection after an idle period can
+take about a minute while the service wakes up.
+
 The bundled server keeps only short-lived in-memory presence and does not
 persist locations:
 
@@ -47,9 +52,10 @@ npm test
 npm start
 ```
 
-Set `Presence server` to the server URL and give each buddy the same
-`Shared room key`. See [the protocol](docs/PRESENCE_PROTOCOL.md) and the
-[architecture notes](docs/ARCHITECTURE.md) for deployment and trust details.
+Give each buddy the same `Shared room key`. The `Presence server` setting can
+point to a separately hosted relay when needed. The production Render setup is
+defined in [`render.yaml`](render.yaml). See [the protocol](docs/PRESENCE_PROTOCOL.md)
+and [architecture notes](docs/ARCHITECTURE.md) for deployment and trust details.
 
 To include the optional Java-to-Node live transport test while the server is
 running:

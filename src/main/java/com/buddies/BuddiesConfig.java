@@ -18,7 +18,7 @@ public interface BuddiesConfig extends Config
 	)
 	default String serverAddress()
 	{
-		return "";
+		return "https://buddies-presence.onrender.com";
 	}
 
 	@ConfigItem(
@@ -67,4 +67,3 @@ public interface BuddiesConfig extends Config
 		return 30;
 	}
 }
-
