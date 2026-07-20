@@ -23,18 +23,26 @@ include room, connection, or presence data.
 
 ## Wire protocol
 
-The server uses Socket.IO 4.x at the default `/socket.io/` path. A client emits:
+The plugin opens a raw RFC 6455 WebSocket at `/presence/v1`. Every application
+message is one UTF-8 JSON object:
 
-- `connection-ack(room, callback?)` to enter one room. `room` must be exactly
-  64 lowercase hexadecimal characters (the plugin sends a SHA-256 digest).
-- `broadcast(record, callback?)` with either a JSON string or an object. The
-  server sends the canonical object to other sockets in that room, excluding
-  the sender.
-- `ping(callback)` to receive the current name-keyed snapshot. The callback is
-  always passed an object; it receives `{}` before a valid room is joined.
+- `{ "type": "join", "room": "..." }` enters one room. The room must be
+  exactly 64 lowercase hexadecimal characters. A successful join returns
+  `{ "type": "joined" }`.
+- `{ "type": "broadcast", "presence": { ... } }` replaces the sender's
+  record. Room peers receive `{ "type": "presence", "presence": { ... } }`.
+- `{ "type": "snapshot" }` returns `{ "type": "snapshot", "presences": {
+  ... } }`. A client that has not joined receives an empty snapshot.
 
-Successful broadcast acknowledgements are `{ "ok": true, "updatedAt": ... }`.
-Rejected broadcasts use `{ "ok": false, "error": "..." }`.
+A valid broadcast also receives an `ack` message containing its server-owned
+`updatedAt`. Rejections receive `{ "type": "error", "code": "..." }`.
+Unknown message types, additional envelope properties, malformed JSON, and
+binary messages are rejected.
+
+The relay temporarily retains Socket.IO 4.x at `/socket.io/` for older
+development clients. That endpoint uses `connection-ack`, `broadcast`, and
+`ping`; it shares records, room limits, and peer broadcasts with `/presence/v1`.
+The RuneLite plugin no longer includes or uses a Socket.IO dependency.
 
 Every broadcast is a complete version 1 replacement:
 
@@ -74,11 +82,13 @@ The defaults can be changed with environment variables:
 | `MAX_ROOMS` | `1000` | Maximum rooms holding live records |
 | `MAX_RECORDS_PER_ROOM` | `200` | Maximum live names per room |
 | `MAX_TOTAL_RECORDS` | `10000` | Maximum live records across all rooms |
-| `MAX_CONNECTIONS` | `5000` | Maximum simultaneous Socket.IO connections |
-| `MAX_SOCKETS_PER_ROOM` | `250` | Maximum joined sockets in one room |
+| `MAX_CONNECTIONS` | `5000` | Maximum simultaneous connections across both endpoints |
+| `MAX_SOCKETS_PER_ROOM` | `250` | Maximum joined sockets in one room across both endpoints |
 
-Expired records and empty rooms are pruned periodically and during reads and
-writes. Restarting the process clears everything.
+The raw WebSocket endpoint sends ping frames every 30 seconds and terminates
+connections that do not answer. Expired records and empty rooms are pruned
+periodically and during reads and writes. Restarting the process clears
+everything.
 
 ## Security and privacy
 

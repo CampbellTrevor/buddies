@@ -2,6 +2,7 @@
 
 const http = require('node:http');
 const { Server } = require('socket.io');
+const { WebSocket, WebSocketServer } = require('ws');
 const {
   CapacityError,
   DEFAULT_MAX_PAYLOAD_BYTES,
@@ -18,6 +19,8 @@ const DEFAULT_PORT = 3000;
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_MAX_CONNECTIONS = 5_000;
 const DEFAULT_MAX_SOCKETS_PER_ROOM = 250;
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 30_000;
+const PRESENCE_WEBSOCKET_PATH = '/presence/v1';
 
 function createPresenceServer(options = {}) {
   const maxPayloadBytes = positiveInteger(
@@ -32,6 +35,10 @@ function createPresenceServer(options = {}) {
     options.maxSocketsPerRoom,
     DEFAULT_MAX_SOCKETS_PER_ROOM
   );
+  const heartbeatIntervalMs = positiveInteger(
+    options.heartbeatIntervalMs,
+    DEFAULT_HEARTBEAT_INTERVAL_MS
+  );
   const store = options.store || new PresenceStore({
     ttlMs: options.ttlMs,
     maxRooms: options.maxRooms,
@@ -41,13 +48,42 @@ function createPresenceServer(options = {}) {
   });
 
   const httpServer = http.createServer(handleHttpRequest);
+  const rawRooms = new Map();
+  const rawMemberships = new WeakMap();
+  let wss;
   let io;
   io = new Server(httpServer, {
     serveClient: false,
     maxHttpBufferSize: maxPayloadBytes + 2_048,
     perMessageDeflate: false,
+    destroyUpgrade: false,
     allowRequest: (_request, callback) => {
-      callback(null, !io || io.engine.clientsCount < maxConnections);
+      callback(null, connectionCount(io, wss) < maxConnections);
+    }
+  });
+
+  wss = new WebSocketServer({
+    noServer: true,
+    clientTracking: true,
+    maxPayload: maxPayloadBytes + 2_048,
+    perMessageDeflate: false
+  });
+
+  httpServer.on('upgrade', (request, socket, head) => {
+    const path = requestPath(request);
+    if (path === PRESENCE_WEBSOCKET_PATH) {
+      if (connectionCount(io, wss) >= maxConnections) {
+        rejectUpgrade(socket, 503, 'Service Unavailable');
+        return;
+      }
+      wss.handleUpgrade(request, socket, head, (client) => {
+        wss.emit('connection', client, request);
+      });
+      return;
+    }
+
+    if (path !== '/socket.io/' && path !== '/socket.io') {
+      rejectUpgrade(socket, 404, 'Not Found');
     }
   });
 
@@ -61,7 +97,7 @@ function createPresenceServer(options = {}) {
       }
 
       const members = io.sockets.adapter.rooms.get(candidate);
-      if (members && members.size >= maxSocketsPerRoom) {
+      if (memberCount(members, rawRooms.get(candidate)) >= maxSocketsPerRoom) {
         reply(ack, { ok: false, error: 'room_capacity' });
         return;
       }
@@ -102,8 +138,92 @@ function createPresenceServer(options = {}) {
       }
 
       socket.to(room).emit('broadcast', record);
+      broadcastRaw(rawRooms.get(room), record);
       reply(ack, { ok: true, updatedAt: record.updatedAt });
     });
+  });
+
+  wss.on('connection', (socket) => {
+    socket.isAlive = true;
+    socket.on('pong', () => {
+      socket.isAlive = true;
+    });
+
+    socket.on('message', (data, isBinary) => {
+      if (isBinary) {
+        sendRawError(socket, 'invalid_message');
+        return;
+      }
+
+      const message = parseRawMessage(data);
+      if (!message) {
+        sendRawError(socket, 'invalid_message');
+        return;
+      }
+
+      if (message.type === 'join') {
+        leaveRawRoom(socket, rawRooms, rawMemberships);
+        if (!isValidRoom(message.room)) {
+          sendRawError(socket, 'invalid_room');
+          return;
+        }
+
+        const socketMembers = io.sockets.adapter.rooms.get(message.room);
+        const rawMembers = rawRooms.get(message.room);
+        if (memberCount(socketMembers, rawMembers) >= maxSocketsPerRoom) {
+          sendRawError(socket, 'room_capacity');
+          return;
+        }
+
+        joinRawRoom(socket, message.room, rawRooms, rawMemberships);
+        sendRaw(socket, { type: 'joined' });
+        return;
+      }
+
+      const room = rawMemberships.get(socket);
+      if (message.type === 'snapshot') {
+        sendRaw(socket, {
+          type: 'snapshot',
+          presences: room ? store.snapshot(room) : Object.create(null)
+        });
+        return;
+      }
+
+      if (!room) {
+        sendRawError(socket, 'not_joined');
+        return;
+      }
+
+      const incoming = parsePresence(message.presence, maxPayloadBytes);
+      if (!incoming) {
+        sendRawError(socket, 'invalid_payload');
+        return;
+      }
+
+      let record;
+      try {
+        record = store.put(room, incoming);
+      } catch (error) {
+        if (error instanceof CapacityError) {
+          sendRawError(socket, error.code);
+          return;
+        }
+        sendRawError(socket, 'invalid_payload');
+        return;
+      }
+
+      broadcastRaw(rawRooms.get(room), record, socket);
+      io.to(room).emit('broadcast', record);
+      sendRaw(socket, {
+        type: 'ack',
+        operation: 'broadcast',
+        updatedAt: record.updatedAt
+      });
+    });
+
+    const leave = () => leaveRawRoom(socket, rawRooms, rawMemberships);
+    socket.on('close', leave);
+    socket.on('error', leave);
   });
 
   const pruneIntervalMs = positiveInteger(
@@ -112,11 +232,26 @@ function createPresenceServer(options = {}) {
   );
   const pruneTimer = setInterval(() => store.prune(), pruneIntervalMs);
   pruneTimer.unref();
+  const heartbeatTimer = setInterval(() => {
+    for (const socket of wss.clients) {
+      if (socket.readyState !== WebSocket.OPEN) {
+        continue;
+      }
+      if (!socket.isAlive) {
+        socket.terminate();
+        continue;
+      }
+      socket.isAlive = false;
+      socket.ping();
+    }
+  }, heartbeatIntervalMs);
+  heartbeatTimer.unref();
 
   let closing = false;
   return {
     httpServer,
     io,
+    wss,
     store,
     listen(port = DEFAULT_PORT, host = DEFAULT_HOST) {
       return new Promise((resolve, reject) => {
@@ -139,9 +274,125 @@ function createPresenceServer(options = {}) {
       }
       closing = true;
       clearInterval(pruneTimer);
-      return new Promise((resolve) => io.close(resolve));
+      clearInterval(heartbeatTimer);
+      for (const socket of wss.clients) {
+        socket.terminate();
+      }
+      return new Promise((resolve) => {
+        wss.close(() => io.close(resolve));
+      });
     }
   };
+}
+
+function connectionCount(io, wss) {
+  const socketIoConnections = io ? io.engine.clientsCount : 0;
+  const rawConnections = wss ? wss.clients.size : 0;
+  return socketIoConnections + rawConnections;
+}
+
+function memberCount(socketIoMembers, rawMembers) {
+  return (socketIoMembers ? socketIoMembers.size : 0) +
+    (rawMembers ? rawMembers.size : 0);
+}
+
+function joinRawRoom(socket, room, rawRooms, rawMemberships) {
+  let members = rawRooms.get(room);
+  if (!members) {
+    members = new Set();
+    rawRooms.set(room, members);
+  }
+  members.add(socket);
+  rawMemberships.set(socket, room);
+}
+
+function leaveRawRoom(socket, rawRooms, rawMemberships) {
+  const room = rawMemberships.get(socket);
+  if (!room) {
+    return;
+  }
+  const members = rawRooms.get(room);
+  if (members) {
+    members.delete(socket);
+    if (members.size === 0) {
+      rawRooms.delete(room);
+    }
+  }
+  rawMemberships.delete(socket);
+}
+
+function broadcastRaw(members, record, excluded) {
+  if (!members) {
+    return;
+  }
+  const message = JSON.stringify({ type: 'presence', presence: record });
+  for (const socket of members) {
+    if (socket !== excluded && socket.readyState === WebSocket.OPEN) {
+      socket.send(message);
+    }
+  }
+}
+
+function parseRawMessage(data) {
+  let value;
+  try {
+    value = JSON.parse(data.toString('utf8'));
+  } catch (_error) {
+    return null;
+  }
+  if (!isObject(value) || typeof value.type !== 'string') {
+    return null;
+  }
+  if (value.type === 'join') {
+    return hasExactKeys(value, ['room', 'type']) ? value : null;
+  }
+  if (value.type === 'snapshot') {
+    return hasExactKeys(value, ['type']) ? value : null;
+  }
+  if (value.type === 'broadcast') {
+    return hasExactKeys(value, ['presence', 'type']) ? value : null;
+  }
+  return null;
+}
+
+function sendRaw(socket, value) {
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(value));
+  }
+}
+
+function sendRawError(socket, code) {
+  sendRaw(socket, { type: 'error', code });
+}
+
+function hasExactKeys(value, expected) {
+  const keys = Object.keys(value).sort();
+  return keys.length === expected.length &&
+    keys.every((key, index) => key === expected[index]);
+}
+
+function isObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function requestPath(request) {
+  try {
+    return new URL(request.url, 'http://localhost').pathname;
+  } catch (_error) {
+    return '';
+  }
+}
+
+function rejectUpgrade(socket, status, reason) {
+  if (!socket.writable) {
+    socket.destroy();
+    return;
+  }
+  socket.end(
+    `HTTP/1.1 ${status} ${reason}\r\n` +
+    'Connection: close\r\n' +
+    'Content-Length: 0\r\n\r\n'
+  );
 }
 
 function leavePresenceRoom(socket) {

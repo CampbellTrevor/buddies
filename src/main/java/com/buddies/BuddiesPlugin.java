@@ -52,6 +52,7 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +83,9 @@ public class BuddiesPlugin extends Plugin
 
 	@Inject
 	private HiscoreClient hiscoreClient;
+
+	@Inject
+	private OkHttpClient okHttpClient;
 
 	private final BuddyDirectory directory = new BuddyDirectory();
 	private final Set<String> hiscoreRequests = ConcurrentHashMap.newKeySet();
@@ -440,7 +444,17 @@ public class BuddiesPlugin extends Plugin
 		{
 			panel.updateFriends(directory.snapshot(), freshnessMillis());
 		}
-		presenceClient = new PresenceClient(gson, this::onPresenceStatus, this::onPresence);
+		ScheduledExecutorService currentWorker = worker;
+		if (currentWorker == null)
+		{
+			return;
+		}
+		presenceClient = new PresenceClient(
+			okHttpClient,
+			gson,
+			currentWorker,
+			this::onPresenceStatus,
+			this::onPresence);
 		presenceClient.connect(config.serverAddress(), config.roomKey());
 	}
 

@@ -28,9 +28,13 @@ currently-online roster entry.
 2. The selected friend's hiscores are fetched asynchronously and cached by
    RuneLite.
 3. Game ticks capture the local immutable location DTO on the client thread.
-4. A small Socket.IO client sends a full presence record roughly every five
-   seconds and consumes snapshots/broadcasts off the client thread.
+4. A small OkHttp WebSocket client sends a full presence record roughly every
+   five seconds and consumes snapshots/broadcasts off the client thread.
 5. Swing mutations are marshalled to the event dispatch thread.
+
+The plugin uses RuneLite's injected OkHttp client and no additional runtime
+dependency. Connection failures use bounded exponential reconnects; each new
+socket must rejoin its room before it can publish or consume records.
 
 The client rejects duplicate or older server timestamps so repeatedly fetching
 one cached record cannot keep it fresh. Freshness checks both local receipt time

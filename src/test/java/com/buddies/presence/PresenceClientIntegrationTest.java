@@ -9,8 +9,11 @@ import com.buddies.location.BuddyLocation;
 import com.buddies.model.BuddyPresence;
 import com.google.gson.Gson;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import okhttp3.OkHttpClient;
 import org.junit.Test;
 
 public class PresenceClientIntegrationTest
@@ -24,9 +27,11 @@ public class PresenceClientIntegrationTest
 		CountDownLatch connected = new CountDownLatch(2);
 		CountDownLatch received = new CountDownLatch(1);
 		AtomicReference<BuddyPresence> peerPresence = new AtomicReference<>();
-		PresenceClient sender = new PresenceClient(new Gson(),
+		OkHttpClient httpClient = new OkHttpClient();
+		ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+		PresenceClient sender = new PresenceClient(httpClient, new Gson(), scheduler,
 			status -> countConnected(status, connected), presence -> { });
-		PresenceClient peer = new PresenceClient(new Gson(),
+		PresenceClient peer = new PresenceClient(httpClient, new Gson(), scheduler,
 			status -> countConnected(status, connected), presence ->
 			{
 				peerPresence.set(presence);
@@ -64,6 +69,9 @@ public class PresenceClientIntegrationTest
 		{
 			sender.close();
 			peer.close();
+			scheduler.shutdownNow();
+			httpClient.dispatcher().executorService().shutdown();
+			httpClient.connectionPool().evictAll();
 		}
 	}
 
@@ -75,4 +83,3 @@ public class PresenceClientIntegrationTest
 		}
 	}
 }
-

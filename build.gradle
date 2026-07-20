@@ -19,10 +19,6 @@ def pluginMainClass = 'com.buddies.BuddiesPlugin'
 dependencies {
 	compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
 
-	implementation('io.socket:socket.io-client:2.0.1') {
-		exclude group: 'com.squareup.okhttp3', module: 'okhttp'
-	}
-
 	testImplementation 'junit:junit:4.13.2'
 	testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
 }
@@ -36,11 +32,6 @@ tasks.withType(JavaCompile).configureEach {
 	options.encoding = 'UTF-8'
 	options.release.set(11)
 	options.compilerArgs.add('-Xlint:unchecked')
-}
-
-tasks.withType(Jar).configureEach {
-	exclude 'org/json/Test.class'
-	exclude 'org/json/Test$*.class'
 }
 
 tasks.register('run', JavaExec) {

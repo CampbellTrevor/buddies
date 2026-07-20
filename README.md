@@ -25,6 +25,9 @@ it is still a bearer secret, not account authentication.
 
 ## Build
 
+The Plugin Hub entry uses its `standard` build. The plugin relies only on APIs
+and libraries supplied by RuneLite, including its shared OkHttp client.
+
 ```powershell
 .\gradlew.bat test
 ```

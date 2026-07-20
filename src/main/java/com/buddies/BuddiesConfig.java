@@ -14,7 +14,7 @@ public interface BuddiesConfig extends Config
 		position = 0,
 		keyName = "serverAddress",
 		name = "Presence server",
-		description = "Socket.IO server used to share activity and location"
+		description = "WebSocket server used to share activity and location"
 	)
 	default String serverAddress()
 	{
