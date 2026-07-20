@@ -420,7 +420,7 @@ public class BuddiesPanel extends PluginPanel
 		long now = System.currentTimeMillis();
 		String activity = buddy.isOnline()
 			? buddy.hasFreshPresence(now, freshnessMillis) && buddy.getActivity() != null
-				? "Training " + buddy.getActivity()
+				? displayActivity(buddy.getActivity())
 				: "In game"
 			: "Inactive";
 		activityLabel.setText(pair("Activity", activity));
@@ -443,6 +443,15 @@ public class BuddiesPanel extends PluginPanel
 		locationLabel.setToolTipText(buddy.hasFreshLocation(now, freshnessMillis)
 			? "Tile " + location.getX() + ", " + location.getY() + ", " + location.getPlane()
 			: null);
+	}
+
+	static String displayActivity(String activity)
+	{
+		return activity.startsWith("Training ")
+			|| activity.startsWith("Fighting ")
+			|| "In combat".equals(activity)
+			? activity
+			: "Training " + activity;
 	}
 
 	private void applyHiscores(HiscoreResult result, String error)

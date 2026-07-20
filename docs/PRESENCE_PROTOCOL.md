@@ -11,7 +11,7 @@ room ID derived from the configured shared key.
   "name": "Player Name",
   "world": 302,
   "location": { "x": 3200, "y": 3200, "plane": 0 },
-  "activity": "Fishing",
+  "activity": "Training Fishing",
   "updatedAt": 1784500000000
 }
 ```
@@ -30,4 +30,3 @@ previous value in full, and assigns a monotonic `updatedAt` timestamp.
 
 The event names match the useful portion of the earlier GIMP server contract,
 but Buddies uses a strict and much smaller schema.
-

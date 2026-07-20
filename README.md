@@ -7,7 +7,7 @@ and replaceable.
 ## Features
 
 - Friend list with RuneLite-authoritative online status and world
-- Shared current activity and named location for friends running Buddies
+- Shared recent combat/training activity and named location for friends running Buddies
 - Stats tab with skill levels and ranks from the official OSRS hiscores
 - Highscores tab with activities, boss scores, and ranks
 - Instanced and sailing-aware local location capture

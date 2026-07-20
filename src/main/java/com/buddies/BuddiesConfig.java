@@ -48,7 +48,7 @@ public interface BuddiesConfig extends Config
 		position = 3,
 		keyName = "shareActivity",
 		name = "Share activity",
-		description = "Share the last skill that changed while you are online"
+		description = "Share recently detected combat or skill training while you are online"
 	)
 	default boolean shareActivity()
 	{

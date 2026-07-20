@@ -44,7 +44,7 @@ Every broadcast is a complete version 1 replacement:
   "name": "Player Name",
   "world": 341,
   "location": { "x": 3200, "y": 3200, "plane": 0 },
-  "activity": "Fishing",
+  "activity": "Training Fishing",
   "updatedAt": 1784500000000
 }
 ```

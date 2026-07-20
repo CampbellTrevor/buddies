@@ -13,6 +13,14 @@ import static org.junit.Assert.assertTrue;
 public class BuddiesPanelLayoutTest
 {
 	@Test
+	public void activityLabelsSupportNewAndLegacyPayloads()
+	{
+		assertEquals("Fighting Zulrah", BuddiesPanel.displayActivity("Fighting Zulrah"));
+		assertEquals("Training Sailing", BuddiesPanel.displayActivity("Training Sailing"));
+		assertEquals("Training Fishing", BuddiesPanel.displayActivity("Fishing"));
+	}
+
+	@Test
 	public void hiscoreTabsFillTheDetailsWidth() throws Exception
 	{
 		SwingUtilities.invokeAndWait(() ->

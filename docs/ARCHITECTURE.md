@@ -7,7 +7,8 @@
 | Friend identity | RuneLite `FriendContainer` |
 | Online status and world | RuneLite `Friend.getWorld()` |
 | Skill levels and ranks | OSRS hiscores through RuneLite `HiscoreClient` |
-| Activity and location | Short-lived Buddies presence record |
+| Activity evidence | Local attackable-NPC interaction and actual XP increases |
+| Shared activity and location | Short-lived Buddies presence record |
 
 Remote payloads cannot add users to the panel or mark an offline RuneLite
 friend online. `BuddyDirectory` accepts shared presence only for an existing,
@@ -28,6 +29,12 @@ The client rejects duplicate or older server timestamps so repeatedly fetching
 one cached record cannot keep it fresh. Freshness checks both local receipt time
 and the server-owned source timestamp.
 
+Activity is a local heuristic, not an authoritative Jagex activity feed. An
+attackable NPC target is reported as combat and takes precedence over XP drops.
+Training requires an actual XP increase, so boosted-level changes do not count.
+Combat clears five seconds after interaction ends, and training clears after
+thirty seconds without another XP gain.
+
 ## Privacy boundaries
 
 Presence records are full replacements. Turning off location or activity sends
@@ -39,4 +46,3 @@ Room possession is the synchronization authorization boundary. Client-side
 friend filtering protects the UI but cannot prevent a room member from reading
 or spoofing room data. Remote deployments should use TLS and high-entropy room
 keys.
-

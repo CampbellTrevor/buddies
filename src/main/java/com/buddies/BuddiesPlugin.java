@@ -21,11 +21,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
+import net.runelite.api.Actor;
 import net.runelite.api.Client;
 import net.runelite.api.Friend;
 import net.runelite.api.FriendContainer;
 import net.runelite.api.GameState;
+import net.runelite.api.NPC;
+import net.runelite.api.NPCComposition;
 import net.runelite.api.Player;
+import net.runelite.api.Skill;
 import net.runelite.api.WorldEntity;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
@@ -81,6 +85,7 @@ public class BuddiesPlugin extends Plugin
 
 	private final BuddyDirectory directory = new BuddyDirectory();
 	private final Set<String> hiscoreRequests = ConcurrentHashMap.newKeySet();
+	private final ActivityTracker activityTracker = new ActivityTracker();
 
 	private volatile ScheduledExecutorService worker;
 	private volatile PresenceClient presenceClient;
@@ -142,6 +147,7 @@ public class BuddiesPlugin extends Plugin
 		directory.syncFriends(Collections.emptyMap(), System.currentTimeMillis());
 		localLocation = null;
 		lastBroadcastLocation = null;
+		activityTracker.reset();
 		currentActivity = null;
 		tickCounter = 0;
 	}
@@ -179,6 +185,9 @@ public class BuddiesPlugin extends Plugin
 		boolean friendsChanged = refreshFriends();
 		Player localPlayer = client.getLocalPlayer();
 		localLocation = localPlayer == null ? null : readLocation(localPlayer);
+		long now = System.currentTimeMillis();
+		observeCombat(localPlayer, now);
+		updateCurrentActivity(now);
 		if (friendsChanged && panel != null)
 		{
 			panel.updateFriends(directory.snapshot(), freshnessMillis());
@@ -205,11 +214,11 @@ public class BuddiesPlugin extends Plugin
 	@Subscribe
 	public void onStatChanged(StatChanged event)
 	{
-		if (client.getGameState() == GameState.LOGGED_IN
-			&& event.getSkill() != net.runelite.api.Skill.HITPOINTS)
+		if (client.getGameState() == GameState.LOGGED_IN)
 		{
-			currentActivity = event.getSkill().getName();
-			forceBroadcast = true;
+			long now = System.currentTimeMillis();
+			activityTracker.observeExperience(event.getSkill(), event.getXp(), now);
+			updateCurrentActivity(now);
 		}
 	}
 
@@ -317,12 +326,81 @@ public class BuddiesPlugin extends Plugin
 
 	private void loadLoggedInState()
 	{
+		resetActivityTracking();
 		refreshFriends();
 		if (panel != null)
 		{
 			panel.updateFriends(directory.snapshot(), freshnessMillis());
 		}
 		restartPresence();
+	}
+
+	private void resetActivityTracking()
+	{
+		activityTracker.reset();
+		for (Skill skill : Skill.values())
+		{
+			if (skill != Skill.OVERALL)
+			{
+				activityTracker.seedExperience(skill, client.getSkillExperience(skill));
+			}
+		}
+		currentActivity = null;
+	}
+
+	private void observeCombat(Player localPlayer, long now)
+	{
+		if (localPlayer == null)
+		{
+			return;
+		}
+
+		Actor target = localPlayer.getInteracting();
+		if (isAttackableNpc(target))
+		{
+			activityTracker.observeCombat(target.getName(), now);
+		}
+		else
+		{
+			activityTracker.observeNoCombat(now);
+		}
+	}
+
+	private static boolean isAttackableNpc(Actor actor)
+	{
+		if (!(actor instanceof NPC))
+		{
+			return false;
+		}
+
+		NPC npc = (NPC) actor;
+		NPCComposition composition = npc.getTransformedComposition();
+		if (composition == null)
+		{
+			composition = npc.getComposition();
+		}
+		if (composition == null || composition.getActions() == null)
+		{
+			return false;
+		}
+		for (String action : composition.getActions())
+		{
+			if ("Attack".equals(action))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void updateCurrentActivity(long now)
+	{
+		String nextActivity = activityTracker.getActivity(now);
+		if (!java.util.Objects.equals(currentActivity, nextActivity))
+		{
+			currentActivity = nextActivity;
+			forceBroadcast = true;
+		}
 	}
 
 	private boolean refreshFriends()
