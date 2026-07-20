@@ -38,6 +38,11 @@ tasks.withType(JavaCompile).configureEach {
 	options.compilerArgs.add('-Xlint:unchecked')
 }
 
+tasks.withType(Jar).configureEach {
+	exclude 'org/json/Test.class'
+	exclude 'org/json/Test$*.class'
+}
+
 tasks.register('run', JavaExec) {
 	classpath = sourceSets.test.runtimeClasspath
 	mainClass = pluginMainClass
