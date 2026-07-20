@@ -1,0 +1,21 @@
+{
+  "name": "buddies-presence-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ephemeral Socket.IO presence relay for the Buddies RuneLite plugin",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "socket.io": "4.8.3"
+  },
+  "devDependencies": {
+    "socket.io-client": "4.8.3"
+  }
+}

@@ -1,0 +1,8 @@
+Buddies is a focused rewrite of the RuneLite GIMP plugin's product shape.
+
+The curated coordinate-to-place resolver in
+src/main/java/com/buddies/location/LocationResolver.java is derived from the
+local gim-plugin work under the BSD 2-Clause license included in LICENSE.
+
+The group model, map rendering, ping overlay, notes, task manager, HTTP
+fallback, and GIMP panel code were intentionally not copied.
