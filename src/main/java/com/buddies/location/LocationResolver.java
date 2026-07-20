@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021, David Vorona <davidavorona@gmail.com>
+ * Copyright (c) 2026, Trevor Campbell
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

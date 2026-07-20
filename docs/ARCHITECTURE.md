@@ -1,5 +1,12 @@
 # Architecture
 
+## Project lineage
+
+The curated place-name resolver was developed during our location-display
+experiments in a locally modified GIMP Tracker checkout. It does not exist in
+upstream GIMP Tracker. That experiment directly led to Buddies, which otherwise
+uses a new friend-based model, presence protocol, and panel implementation.
+
 ## Sources of truth
 
 | Data | Source |
