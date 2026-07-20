@@ -24,36 +24,12 @@
  */
 package com.buddies.location;
 
-import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import net.runelite.api.coords.WorldPoint;
 
 public final class LocationResolver
 {
-	private static final int CLOSE_POINT_DISTANCE = 24;
-	private static final int NEARBY_POINT_DISTANCE = 256;
-	private static final String WORLDMAP_PACKAGE = "net.runelite.client.plugins.worldmap.";
-
-	private static final List<String> WORLDMAP_LOCATION_CLASSES = Arrays.asList(
-		"AgilityCourseLocation",
-		"DungeonLocation",
-		"FairyRingLocation",
-		"FarmingPatchLocation",
-		"FishingSpotLocation",
-		"HunterAreaLocation",
-		"MinigameLocation",
-		"MiningSiteLocation",
-		"MooringLocation",
-		"RareTreeLocation",
-		"RunecraftingAltarLocation",
-		"TeleportLocationData",
-		"TransportationPointLocation"
-	);
-
 	private static final List<NamedArea> SPECIAL_AREAS = Arrays.asList(
 		area("Player-owned House", 1856, 5056, 2047, 5759),
 		area("Player-owned House", 3584, 9472, 3647, 9535),
@@ -175,8 +151,6 @@ public final class LocationResolver
 		area("Piscatoris", 2200, 3350, 2425, 3650)
 	);
 
-	private static volatile List<NamedPoint> worldMapLocations;
-
 	private LocationResolver()
 	{
 	}
@@ -219,22 +193,10 @@ public final class LocationResolver
 			return area.name;
 		}
 
-		NamedPoint closePoint = findNearestPoint(point, CLOSE_POINT_DISTANCE);
-		if (closePoint != null)
-		{
-			return closePoint.name;
-		}
-
 		area = findArea(point, REGIONS);
 		if (area != null)
 		{
 			return area.name;
-		}
-
-		NamedPoint nearbyPoint = findNearestPoint(point, NEARBY_POINT_DISTANCE);
-		if (nearbyPoint != null)
-		{
-			return "near " + nearbyPoint.name;
 		}
 
 		area = findArea(point, FALLBACK_AREAS);
@@ -269,208 +231,6 @@ public final class LocationResolver
 			}
 		}
 		return null;
-	}
-
-	private static NamedPoint findNearestPoint(WorldPoint point, int maxDistance)
-	{
-		int maxDistanceSquared = maxDistance * maxDistance;
-		int bestDistance = Integer.MAX_VALUE;
-		NamedPoint best = null;
-		for (NamedPoint namedPoint : getWorldMapLocations())
-		{
-			int distance = namedPoint.distanceSquaredTo(point);
-			if (distance < bestDistance && distance <= maxDistanceSquared)
-			{
-				bestDistance = distance;
-				best = namedPoint;
-			}
-		}
-		return best;
-	}
-
-	private static List<NamedPoint> getWorldMapLocations()
-	{
-		List<NamedPoint> locations = worldMapLocations;
-		if (locations == null)
-		{
-			locations = loadWorldMapLocations();
-			worldMapLocations = locations;
-		}
-		return locations;
-	}
-
-	private static List<NamedPoint> loadWorldMapLocations()
-	{
-		List<NamedPoint> locations = new ArrayList<>();
-		for (String className : WORLDMAP_LOCATION_CLASSES)
-		{
-			loadWorldMapLocations(className, locations);
-		}
-		return Collections.unmodifiableList(locations);
-	}
-
-	private static void loadWorldMapLocations(String className, List<NamedPoint> locations)
-	{
-		try
-		{
-			Class<?> locationClass = Class.forName(WORLDMAP_PACKAGE + className);
-			Object[] constants = locationClass.getEnumConstants();
-			if (constants == null)
-			{
-				return;
-			}
-
-			Method getLocation = getMethod(locationClass, "getLocation");
-			Method getLocations = getMethod(locationClass, "getLocations");
-			Method getCode = getMethod(locationClass, "getCode");
-			Method getTooltip = getMethod(locationClass, "getTooltip");
-
-			for (Object constant : constants)
-			{
-				String name = getLocationName(constant, getCode, getTooltip);
-				if (name.isEmpty())
-				{
-					continue;
-				}
-
-				if (getLocation != null)
-				{
-					Object value = getLocation.invoke(constant);
-					if (value instanceof WorldPoint)
-					{
-						locations.add(new NamedPoint(name, (WorldPoint) value));
-					}
-				}
-				if (getLocations != null)
-				{
-					Object value = getLocations.invoke(constant);
-					if (value instanceof WorldPoint[])
-					{
-						for (WorldPoint point : (WorldPoint[]) value)
-						{
-							locations.add(new NamedPoint(name, point));
-						}
-					}
-				}
-			}
-		}
-		catch (ReflectiveOperationException | RuntimeException | LinkageError ignored)
-		{
-			// The plugin still works with the curated area list if RuneLite changes these internal classes.
-		}
-	}
-
-	private static Method getMethod(Class<?> clazz, String name)
-	{
-		try
-		{
-			Method method = clazz.getDeclaredMethod(name);
-			method.setAccessible(true);
-			return method;
-		}
-		catch (NoSuchMethodException ignored)
-		{
-			return null;
-		}
-	}
-
-	private static String getLocationName(Object constant, Method getCode, Method getTooltip) throws ReflectiveOperationException
-	{
-		if (constant instanceof Enum)
-		{
-			if (getTooltip != null)
-			{
-				Object tooltip = getTooltip.invoke(constant);
-				if (tooltip instanceof String && !((String) tooltip).isEmpty())
-				{
-					return (String) tooltip;
-				}
-			}
-			if (getCode != null)
-			{
-				Object code = getCode.invoke(constant);
-				if (code instanceof String)
-				{
-					return "Fairy ring " + code;
-				}
-			}
-			String enumName = ((Enum<?>) constant).name();
-			return humanizeEnumName(enumName);
-		}
-		return "";
-	}
-
-	private static String humanizeEnumName(String enumName)
-	{
-		String[] words = enumName.replaceAll("_+", " ").trim().toLowerCase(Locale.ROOT).split(" ");
-		StringBuilder builder = new StringBuilder();
-		for (String word : words)
-		{
-			if (word.isEmpty())
-			{
-				continue;
-			}
-			if (builder.length() > 0)
-			{
-				builder.append(' ');
-			}
-			builder.append(formatWord(word));
-		}
-		return builder.toString()
-			.replace("Mos Leharmless", "Mos Le'Harmless");
-	}
-
-	private static String formatWord(String word)
-	{
-		if ("ge".equals(word))
-		{
-			return "GE";
-		}
-		if ("gwd".equals(word))
-		{
-			return "GWD";
-		}
-		if ("ne".equals(word))
-		{
-			return "NE";
-		}
-		if ("nw".equals(word))
-		{
-			return "NW";
-		}
-		if ("se".equals(word))
-		{
-			return "SE";
-		}
-		if ("sw".equals(word))
-		{
-			return "SW";
-		}
-		if ("npc".equals(word) || "npcs".equals(word))
-		{
-			return word.toUpperCase(Locale.ROOT);
-		}
-		if ("tzhaar".equals(word))
-		{
-			return "TzHaar";
-		}
-		if ("kharedsts".equals(word))
-		{
-			return "Kharedst's";
-		}
-		if ("pharaohs".equals(word))
-		{
-			return "Pharaoh's";
-		}
-		if ("myths".equals(word))
-		{
-			return "Myths'";
-		}
-		if (word.length() == 1)
-		{
-			return word.toUpperCase(Locale.ROOT);
-		}
-		return word.substring(0, 1).toUpperCase(Locale.ROOT) + word.substring(1);
 	}
 
 	private static NamedArea area(String name, int minX, int minY, int maxX, int maxY)
@@ -530,25 +290,6 @@ public final class LocationResolver
 				}
 			}
 			return false;
-		}
-	}
-
-	private static final class NamedPoint
-	{
-		private final String name;
-		private final WorldPoint point;
-
-		private NamedPoint(String name, WorldPoint point)
-		{
-			this.name = name;
-			this.point = point;
-		}
-
-		private int distanceSquaredTo(WorldPoint other)
-		{
-			int dx = point.getX() - other.getX();
-			int dy = point.getY() - other.getY();
-			return dx * dx + dy * dy;
 		}
 	}
 }

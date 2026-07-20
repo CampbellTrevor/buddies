@@ -1,32 +1,30 @@
 plugins {
-    id 'java'
-    id 'application'
+	id 'java'
 }
 
 repositories {
-    mavenLocal()
-    maven {
-        url = 'https://repo.runelite.net'
-    }
-    mavenCentral()
+	mavenLocal()
+	maven {
+		url = 'https://repo.runelite.net'
+		content {
+			includeGroupByRegex("net\\.runelite.*")
+		}
+	}
+	mavenCentral()
 }
 
-def runeLiteVersion = '1.12.32'
-final boolean isBuddiesDev = Boolean.TRUE.toString().equalsIgnoreCase(System.getProperty('buddiesDev'))
+def runeLiteVersion = 'latest.release'
+def pluginMainClass = 'com.buddies.BuddiesPlugin'
 
 dependencies {
-    if (isBuddiesDev) {
-        implementation group: 'net.runelite', name: 'client', version: runeLiteVersion
-    } else {
-        compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
-    }
+	compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
 
-    implementation('io.socket:socket.io-client:2.0.1') {
-        exclude group: 'com.squareup.okhttp3', module: 'okhttp'
-    }
+	implementation('io.socket:socket.io-client:2.0.1') {
+		exclude group: 'com.squareup.okhttp3', module: 'okhttp'
+	}
 
-    testImplementation 'junit:junit:4.13.2'
-    testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
+	testImplementation 'junit:junit:4.13.2'
+	testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
 }
 
 group = 'com.buddies'
@@ -34,16 +32,16 @@ version = '0.1.0'
 sourceCompatibility = '11'
 targetCompatibility = '11'
 
-tasks.withType(JavaCompile) {
-    options.encoding = 'UTF-8'
-    options.release.set(11)
-    options.compilerArgs.add('-Xlint:unchecked')
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.release.set(11)
+	options.compilerArgs.add('-Xlint:unchecked')
 }
 
-application {
-    mainClass = 'com.buddies.BuddiesPlugin'
-}
+tasks.register('run', JavaExec) {
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = pluginMainClass
 
-run {
-    enableAssertions = true
+	jvmArgs "-ea"
+	args "--developer-mode", "--debug"
 }
