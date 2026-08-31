@@ -40,8 +40,8 @@ public class PresenceClientIntegrationTest
 
 		try
 		{
-			sender.connect(url, "integration-test-room-key");
-			peer.connect(url, "integration-test-room-key");
+			sender.connect(url);
+			peer.connect(url);
 			assertTrue("Clients did not connect", connected.await(10, TimeUnit.SECONDS));
 
 			BuddyPresence payload = new BuddyPresence(

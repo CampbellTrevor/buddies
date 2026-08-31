@@ -26,6 +26,8 @@ public final class PresenceClient implements AutoCloseable
 {
 	private static final Logger LOG = LoggerFactory.getLogger(PresenceClient.class);
 	private static final String ENDPOINT_PATH = "/presence/v1";
+	// This only selects the shared relay room; it is intentionally not a secret.
+	private static final String SHARED_ROOM = RoomKey.derive("buddies-presence-v1");
 	private static final long JOIN_TIMEOUT_MS = 15_000L;
 	private static final long MIN_RECONNECT_DELAY_MS = 1_000L;
 	private static final long MAX_RECONNECT_DELAY_MS = 10_000L;
@@ -60,12 +62,11 @@ public final class PresenceClient implements AutoCloseable
 		this.presenceListener = Objects.requireNonNull(presenceListener);
 	}
 
-	public synchronized void connect(String serverAddress, String sharedKey)
+	public synchronized void connect(String serverAddress)
 	{
 		stopConnection();
 		URI server = parseServerAddress(serverAddress);
-		String nextRoom = RoomKey.derive(sharedKey);
-		if (server == null || nextRoom.isEmpty())
+		if (server == null)
 		{
 			setStatus(PresenceStatus.DISABLED);
 			return;
@@ -79,7 +80,7 @@ public final class PresenceClient implements AutoCloseable
 		}
 
 		endpoint = nextEndpoint;
-		room = nextRoom;
+		room = SHARED_ROOM;
 		enabled = true;
 		reconnectDelayMs = MIN_RECONNECT_DELAY_MS;
 		setStatus(PresenceStatus.CONNECTING);

@@ -53,7 +53,8 @@ an explicit JSON `null`, clearing the prior server value and peer cache. Going
 offline clears cached shared presence locally. The bundled server expires all
 records and holds no persistent database.
 
-Room possession is the synchronization authorization boundary. Client-side
-friend filtering protects the UI but cannot prevent a room member from reading
-or spoofing room data. Remote deployments should use TLS and high-entropy room
-keys.
+Buddies clients automatically use one built-in room identifier. It is not a
+secret or an authorization boundary. Client-side friend filtering prevents
+unrelated presence from appearing in the panel, but it cannot prevent another
+relay client from reading or spoofing room data. Remote deployments should use
+TLS; a separately hosted relay can provide stronger isolation when needed.

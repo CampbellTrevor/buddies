@@ -1,8 +1,10 @@
 # Presence Protocol V1
 
 Buddies uses a raw RFC 6455 WebSocket at `/presence/v1`. The configured HTTP
-or HTTPS server address is mapped directly to `ws` or `wss`. A room is identified
-by the lowercase 64-character SHA-256 digest of the configured shared key.
+or HTTPS server address is mapped directly to `ws` or `wss`. Every Buddies
+client automatically joins the same built-in room identifier. The identifier
+is a stable lowercase 64-character SHA-256 digest used for routing, not a
+secret or an authentication token.
 
 Each WebSocket frame is a UTF-8 JSON object. The client first joins one room:
 

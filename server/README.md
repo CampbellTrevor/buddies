@@ -92,10 +92,11 @@ everything.
 
 ## Security and privacy
 
-A room digest is a bearer secret, not an account or an authorization system.
-Use a high-entropy shared key (at least 128 random bits), distribute it outside
-the game, and rotate it if it is exposed. Do not use a memorable word as the
-shared key.
+The current Buddies client automatically uses one public, built-in room
+identifier. Room membership is therefore not an account or authorization
+system. Clients filter received records against RuneLite's online friends list,
+but a relay client can still read or spoof records in the shared room. Host a
+separate relay when stronger isolation is needed.
 
 The relay never logs room identifiers or presence payloads. It only prints a
 generic startup line or startup failure. Put access controls and rate limits at

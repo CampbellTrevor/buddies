@@ -23,21 +23,9 @@ public interface BuddiesConfig extends Config
 
 	@ConfigItem(
 		position = 1,
-		keyName = "roomKey",
-		name = "Shared room key",
-		description = "Private key that buddies enter to share presence",
-		secret = true
-	)
-	default String roomKey()
-	{
-		return "";
-	}
-
-	@ConfigItem(
-		position = 2,
 		keyName = "shareLocation",
 		name = "Share location",
-		description = "Share your current area with buddies using the same room key"
+		description = "Share your current area with online friends who use Buddies"
 	)
 	default boolean shareLocation()
 	{
@@ -45,7 +33,7 @@ public interface BuddiesConfig extends Config
 	}
 
 	@ConfigItem(
-		position = 3,
+		position = 2,
 		keyName = "shareActivity",
 		name = "Share activity",
 		description = "Share recently detected combat or skill training while you are online"
@@ -57,7 +45,7 @@ public interface BuddiesConfig extends Config
 
 	@Range(min = 10, max = 120)
 	@ConfigItem(
-		position = 4,
+		position = 3,
 		keyName = "presenceFreshness",
 		name = "Presence freshness",
 		description = "Seconds before a shared activity or location is treated as stale"

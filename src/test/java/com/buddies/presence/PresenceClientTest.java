@@ -85,7 +85,7 @@ public class PresenceClientTest
 		List<BuddyPresence> received = new ArrayList<>();
 		PresenceClient client = newClient(factory, statuses::add, received::add);
 
-		client.connect("https://example.com", "shared secret");
+		client.connect("https://example.com");
 		assertEquals(PresenceStatus.CONNECTING, client.getStatus());
 		assertEquals("/presence/v1", factory.request.url().encodedPath());
 		assertTrue(factory.request.url().isHttps());
@@ -93,7 +93,9 @@ public class PresenceClientTest
 		factory.open();
 		JsonObject join = parse(factory.socket.messages.get(0));
 		assertEquals("join", join.get("type").getAsString());
-		assertEquals(RoomKey.derive("shared secret"), join.get("room").getAsString());
+		assertEquals(
+			"d1113c0686c0aed2606c7fff822dd04031793e1280630c422a51a1ece41abbee",
+			join.get("room").getAsString());
 		assertEquals(PresenceStatus.CONNECTING, client.getStatus());
 
 		factory.message("{\"type\":\"joined\"}");

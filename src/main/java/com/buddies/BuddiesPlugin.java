@@ -243,7 +243,7 @@ public class BuddiesPlugin extends Plugin
 			return;
 		}
 
-		if ("serverAddress".equals(event.getKey()) || "roomKey".equals(event.getKey()))
+		if ("serverAddress".equals(event.getKey()))
 		{
 			restartPresence();
 		}
@@ -455,7 +455,7 @@ public class BuddiesPlugin extends Plugin
 			currentWorker,
 			this::onPresenceStatus,
 			this::onPresence);
-		presenceClient.connect(config.serverAddress(), config.roomKey());
+		presenceClient.connect(config.serverAddress());
 	}
 
 	private void stopPresence()
