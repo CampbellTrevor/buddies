@@ -67,14 +67,3 @@ running:
 $env:BUDDIES_INTEGRATION_URL = 'http://127.0.0.1:3000'
 .\gradlew.bat test --tests com.buddies.presence.PresenceClientIntegrationTest
 ```
-
-## Project Shape
-
-Buddies grew out of our experimental location-display changes in a locally
-modified GIMP Tracker checkout. The curated place-name resolver was developed
-as part of those local changes and is not a feature of upstream GIMP Tracker;
-that experiment was the progenitor of Buddies.
-
-The implementation deliberately leaves behind GIMP Tracker's group model,
-world-map rendering, pings, notes, and custom task system. The resolver is the
-only substantial implementation carried forward from our local experiment.
